@@ -1,0 +1,132 @@
+// (00) 00000-0000
+const phoneMask = (value: string | number) => {
+  const stringValue = value.toString();
+  return stringValue
+    .replace(/\D/g, '')
+    .replace(/(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{5})(\d{4})/, '$1-$2');
+};
+
+// (00) 0000-0000
+const landlineTelephoneMask = (value: string | number) => {
+  const stringValue = value.toString();
+  return stringValue
+    .replace(/\D/g, '')
+    .replace(/(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{4})(\d{4})/, '$1-$2');
+};
+
+// 10.000,00 -> 10000.00
+const removeMoneyMask = (value: string | number) => {
+  const originalNumber = Number(value);
+  const numberIsWithMask = Number.isNaN(originalNumber);
+
+  if (numberIsWithMask) {
+    const stringValue = value.toString();
+    const splitedMoneyMask = stringValue
+      .split('.')
+      .join('')
+      .split(',')
+      .join('.');
+
+    return splitedMoneyMask.replace(/[^0-9.-]+/g, '');
+  }
+
+  return value.toString();
+};
+
+type BehaviorMode = 'standard' | 'typing';
+
+const moneyMaskCustomization = {
+  /**
+   * typingMode - The value is typed from right to left:
+   *  - '1' -> '0.01'
+   *  - '10' -> '0.10'
+   *
+   * defaultMode - Simple conversion:
+   *  - '1' -> '1.00'
+   *  - '10' -> '10.00'
+   */
+  maskBehaviorMode: (behaviorMode: BehaviorMode, value: string | number) => {
+    const numberWithoutMask = removeMoneyMask(value);
+    const normalizedMoneyValue = moneyMaskCustomization.normalizeMoneyValue(
+      numberWithoutMask.toString(),
+    );
+    const integerWithoutDecimalPlaces = normalizedMoneyValue.length === 1;
+
+    if (behaviorMode === 'typing' && integerWithoutDecimalPlaces) {
+      const newNumberFormat = Number(normalizedMoneyValue) / 100;
+      return Number(newNumberFormat).toFixed(2);
+    }
+
+    if (behaviorMode === 'standard' && integerWithoutDecimalPlaces) {
+      return Number(normalizedMoneyValue).toFixed(2);
+    }
+
+    return normalizedMoneyValue;
+  },
+  normalizeMoneyValue: (numberToNormalized: string) => {
+    const [stringInteger, stringDecimal] = numberToNormalized.split('.');
+
+    if (stringDecimal && stringDecimal.length === 1) {
+      const lastPositionOfTheInteger = stringInteger.length - 1;
+      const lastToIntegerPlace = stringInteger[lastPositionOfTheInteger];
+
+      if (lastPositionOfTheInteger !== 0) {
+        const firstIntegerPlace = stringInteger.substring(
+          0,
+          lastPositionOfTheInteger,
+        );
+
+        return `${firstIntegerPlace}.${lastToIntegerPlace}${stringDecimal}`;
+      }
+
+      return `${0}.${lastToIntegerPlace}${stringDecimal}`;
+    }
+
+    if (stringDecimal && stringDecimal.length === 3) {
+      const firstDecimalPlace = stringDecimal.substring(0, 1);
+      const lastTwoDecimalPlaces = stringDecimal.substring(1, 3);
+      const integerIsZero = Number(stringInteger) === 0;
+
+      if (integerIsZero) {
+        return `${firstDecimalPlace}.${lastTwoDecimalPlaces}`;
+      }
+
+      return `${stringInteger}${firstDecimalPlace}.${lastTwoDecimalPlaces}`;
+    }
+
+    return numberToNormalized;
+  },
+};
+
+// 10.000,00
+const moneyMask = (
+  value: string | number,
+  maskBehaviorMode: BehaviorMode = 'standard',
+) => {
+  if (value || Number.isInteger(value)) {
+    const moneyValue = moneyMaskCustomization.maskBehaviorMode(
+      maskBehaviorMode,
+      value,
+    );
+
+    return moneyValue
+      .replace(/\D/g, '')
+      .replace(/\D/g, '.')
+      .replace(/(\d)(\d{2})$/, '$1,$2')
+      .replace(/(?=(\d{3})+(\D))\B/g, '.');
+  }
+  return '';
+};
+
+// 000.000.000-00
+const cpfMask = (value: string | number) => {
+  const stringValue = value.toString();
+  return stringValue
+    .replace(/\D/g, '')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+    .replace(/(-\d{2})\d+?$/, '$1');
+};
